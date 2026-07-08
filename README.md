@@ -1,6 +1,7 @@
 # NewsIQ — Fake News Detector
 ### Powered by IBM watsonx.ai · Granite Model
 
+👉 **Live Demo:** [https:////NewsIQ.ai/](https://newsiq-production.up.railway.app/)
 A production-ready web application that classifies news headlines and articles as **REAL**, **SUSPICIOUS**, or **FAKE** using IBM watsonx.ai Granite models, with keyword highlighting, confidence scores, credibility checklists, history, and compare mode.
 
 ---
