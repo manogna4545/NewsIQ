@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NewsIQ — AI Fake News Detector</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ── NAVBAR ───────────────────────────────────────────────────────────── -->
+<nav class="navbar navbar-dark niq-navbar sticky-top">
+  <div class="container-xl">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+      <span class="niq-logo-icon"><i class="bi bi-shield-check"></i></span>
+      <span class="fw-bold fs-5 text-white">NewsIQ</span>
+      <span class="badge bg-primary ms-1" style="font-size:.65rem;">AI</span>
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <span id="statusDot" class="status-dot status-checking" title="Checking API…"></span>
+      <span class="text-muted small d-none d-md-inline">Powered by IBM watsonx.ai Granite</span>
+      <button class="btn btn-outline-secondary btn-sm" id="btnCompareMode">
+        <i class="bi bi-columns-gap me-1"></i>Compare
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ── HERO ─────────────────────────────────────────────────────────────── -->
+<div class="niq-hero text-center py-5">
+  <div class="container-xl">
+    <h1 class="display-6 fw-bold mb-2">Detect Misinformation Instantly</h1>
+    <p class="text-muted mb-0">Paste a headline, article, or URL — get an AI-powered credibility verdict in seconds.</p>
+  </div>
+</div>
+
+<!-- ── MAIN LAYOUT ───────────────────────────────────────────────────────── -->
+<main class="container-xl py-4">
+  <div class="row g-4">
+
+    <!-- LEFT COLUMN: Input + Results -->
+    <div class="col-lg-8">
+
+      <!-- SINGLE ANALYSIS PANEL -->
+      <div id="singlePanel">
+        <div class="niq-card mb-4">
+          <div class="niq-card-header">
+            <i class="bi bi-search me-2 text-primary"></i>Analyse News Text
+          </div>
+          <div class="niq-card-body">
+
+            <!-- Language toggle -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <label class="form-label mb-0 small text-muted">Language</label>
+              <div class="btn-group btn-group-sm" role="group">
+                <input type="radio" class="btn-check" name="lang" id="langAuto" value="auto" checked />
+                <label class="btn btn-outline-secondary" for="langAuto">Auto-detect</label>
+                <input type="radio" class="btn-check" name="lang" id="langEn" value="en" />
+                <label class="btn btn-outline-secondary" for="langEn">English</label>
+                <input type="radio" class="btn-check" name="lang" id="langHi" value="hi" />
+                <label class="btn btn-outline-secondary" for="langHi">हिंदी</label>
+              </div>
+            </div>
+
+            <!-- Text input -->
+            <div class="mb-3">
+              <textarea id="newsText" class="form-control niq-textarea" rows="5"
+                placeholder="Paste a news headline, article excerpt, or any claim you want to verify…"></textarea>
+              <div class="d-flex justify-content-between mt-1">
+                <span class="small text-muted"><span id="charCount">0</span> / 3000 characters</span>
+                <button class="btn btn-link btn-sm p-0 text-muted" id="btnClearText">
+                  <i class="bi bi-x-circle me-1"></i>Clear
+                </button>
+              </div>
+            </div>
+
+            <!-- URL input -->
+            <div class="mb-3">
+              <div class="input-group">
+                <span class="input-group-text bg-dark border-secondary"><i class="bi bi-link-45deg text-muted"></i></span>
+                <input type="url" id="articleUrl" class="form-control" placeholder="Optional: paste article URL to fetch text automatically" />
+                <button class="btn btn-outline-secondary" id="btnFetchUrl" type="button">
+                  <i class="bi bi-cloud-download me-1"></i>Fetch
+                </button>
+              </div>
+            </div>
+
+            <button class="btn btn-primary w-100 niq-btn-analyse" id="btnAnalyse">
+              <span id="btnAnalyseText"><i class="bi bi-cpu me-2"></i>Analyse with AI</span>
+              <span id="btnAnalyseSpinner" class="d-none">
+                <span class="spinner-border spinner-border-sm me-2"></span>Analysing…
+              </span>
+            </button>
+
+          </div>
+        </div>
+
+        <!-- RESULT AREA (hidden until analysis) -->
+        <div id="resultArea" class="d-none">
+
+          <!-- Verdict card -->
+          <div class="niq-card mb-4 niq-result-card" id="verdictCard">
+            <div class="niq-card-header d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-clipboard-data me-2 text-primary"></i>Verdict</span>
+              <span id="langBadge" class="badge bg-secondary">EN</span>
+            </div>
+            <div class="niq-card-body">
+              <div class="d-flex align-items-center gap-4 flex-wrap">
+                <div class="verdict-badge-wrap">
+                  <div id="verdictBadge" class="verdict-badge">—</div>
+                </div>
+                <div class="flex-grow-1">
+                  <p id="verdictSummary" class="mb-2 fs-6 fw-semibold"></p>
+                  <!-- Confidence meter -->
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="small text-muted">Confidence</span>
+                    <div class="flex-grow-1">
+                      <div class="progress niq-progress">
+                        <div id="confidenceBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+                      </div>
+                    </div>
+                    <span id="confidenceNum" class="small fw-bold text-primary">0%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Highlighted text -->
+          <div class="niq-card mb-4">
+            <div class="niq-card-header">
+              <i class="bi bi-highlighter me-2 text-warning"></i>Highlighted Text
+              <span class="text-muted small ms-2">(suspicious words marked)</span>
+            </div>
+            <div class="niq-card-body">
+              <p id="highlightedText" class="mb-0 niq-highlighted-text lh-lg"></p>
+            </div>
+          </div>
+
+          <!-- Explanation -->
+          <div class="niq-card mb-4">
+            <div class="niq-card-header">
+              <i class="bi bi-lightbulb me-2 text-info"></i>Explanation
+            </div>
+            <div class="niq-card-body">
+              <ul id="explanationList" class="niq-explanation-list mb-3"></ul>
+              <div class="niq-simple-box">
+                <span class="badge bg-secondary mb-2"><i class="bi bi-chat-text me-1"></i>Plain Language Summary</span>
+                <p id="simpleExplanation" class="mb-0 small lh-lg"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Signals + Checklist row -->
+          <div class="row g-4 mb-4">
+            <div class="col-md-6">
+              <div class="niq-card h-100">
+                <div class="niq-card-header">
+                  <i class="bi bi-exclamation-triangle me-2 text-warning"></i>Red Flag Signals
+                </div>
+                <div class="niq-card-body">
+                  <div id="signalsList" class="d-flex flex-wrap gap-2"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="niq-card h-100">
+                <div class="niq-card-header">
+                  <i class="bi bi-check2-square me-2 text-success"></i>Credibility Checklist
+                </div>
+                <div class="niq-card-body">
+                  <ul id="checklistItems" class="niq-checklist mb-0"></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Disclaimer -->
+          <div class="alert alert-secondary niq-disclaimer small">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Note:</strong> AI analysis has limits. Always verify information with trusted sources.
+            This tool assists your judgement — it is not a definitive verdict.
+          </div>
+
+        </div><!-- /resultArea -->
+      </div><!-- /singlePanel -->
+
+      <!-- COMPARE PANEL (hidden by default) -->
+      <div id="comparePanel" class="d-none">
+        <div class="niq-card mb-4">
+          <div class="niq-card-header">
+            <i class="bi bi-columns-gap me-2 text-primary"></i>Compare Two Headlines
+          </div>
+          <div class="niq-card-body">
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small text-muted">Headline / Text A</label>
+                <textarea id="compareTextA" class="form-control niq-textarea" rows="4"
+                  placeholder="First headline or article excerpt…"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small text-muted">Headline / Text B</label>
+                <textarea id="compareTextB" class="form-control niq-textarea" rows="4"
+                  placeholder="Second headline or article excerpt…"></textarea>
+              </div>
+            </div>
+            <button class="btn btn-primary w-100" id="btnCompare">
+              <span id="btnCompareText"><i class="bi bi-cpu me-2"></i>Compare with AI</span>
+              <span id="btnCompareSpinner" class="d-none">
+                <span class="spinner-border spinner-border-sm me-2"></span>Comparing…
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div id="compareResult" class="d-none">
+          <div class="row g-4 mb-4">
+            <div class="col-md-6">
+              <div class="niq-card h-100" id="compareCardA">
+                <div class="niq-card-header">Text A</div>
+                <div class="niq-card-body text-center">
+                  <div id="compareVerdictA" class="verdict-badge mb-2">—</div>
+                  <div class="progress niq-progress mb-2">
+                    <div id="compareBarA" class="progress-bar" style="width:0%"></div>
+                  </div>
+                  <p id="compareSummaryA" class="small mb-0"></p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="niq-card h-100" id="compareCardB">
+                <div class="niq-card-header">Text B</div>
+                <div class="niq-card-body text-center">
+                  <div id="compareVerdictB" class="verdict-badge mb-2">—</div>
+                  <div class="progress niq-progress mb-2">
+                    <div id="compareBarB" class="progress-bar" style="width:0%"></div>
+                  </div>
+                  <p id="compareSummaryB" class="small mb-0"></p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="niq-card mb-4">
+            <div class="niq-card-header"><i class="bi bi-bar-chart me-2 text-info"></i>Comparison Analysis</div>
+            <div class="niq-card-body">
+              <p id="compareText" class="mb-2"></p>
+              <div id="moreCredibleBadge"></div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /comparePanel -->
+
+    </div><!-- /col-lg-8 -->
+
+    <!-- RIGHT COLUMN: History + Tips -->
+    <div class="col-lg-4">
+
+      <!-- History panel -->
+      <div class="niq-card mb-4">
+        <div class="niq-card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-clock-history me-2 text-primary"></i>Recent Analyses</span>
+          <button class="btn btn-outline-danger btn-xs" id="btnClearHistory">
+            <i class="bi bi-trash3"></i>
+          </button>
+        </div>
+        <div id="historyList" class="niq-history-list">
+          <div class="text-center text-muted py-4 small" id="historyEmpty">
+            <i class="bi bi-inbox display-6 d-block mb-2 opacity-50"></i>No analyses yet
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick tips -->
+      <div class="niq-card mb-4">
+        <div class="niq-card-header"><i class="bi bi-shield-exclamation me-2 text-warning"></i>Spotting Fake News</div>
+        <div class="niq-card-body">
+          <ul class="niq-tips-list mb-0">
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Check the original source URL</li>
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Look for named authors</li>
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Watch for emotional all-caps words</li>
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Verify claims on fact-check sites</li>
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Check publication date</li>
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Cross-reference multiple outlets</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Trusted fact-check resources -->
+      <div class="niq-card">
+        <div class="niq-card-header"><i class="bi bi-link-45deg me-2 text-info"></i>Fact-Check Resources</div>
+        <div class="niq-card-body">
+          <div class="d-flex flex-column gap-2">
+            <a href="https://www.snopes.com" target="_blank" class="niq-resource-link">
+              <i class="bi bi-box-arrow-up-right me-2"></i>Snopes.com
+            </a>
+            <a href="https://www.factcheck.org" target="_blank" class="niq-resource-link">
+              <i class="bi bi-box-arrow-up-right me-2"></i>FactCheck.org
+            </a>
+            <a href="https://www.politifact.com" target="_blank" class="niq-resource-link">
+              <i class="bi bi-box-arrow-up-right me-2"></i>PolitiFact
+            </a>
+            <a href="https://www.boomlive.in" target="_blank" class="niq-resource-link">
+              <i class="bi bi-box-arrow-up-right me-2"></i>Boom Live (India)
+            </a>
+            <a href="https://factly.in" target="_blank" class="niq-resource-link">
+              <i class="bi bi-box-arrow-up-right me-2"></i>Factly (India)
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /col-lg-4 -->
+  </div><!-- /row -->
+</main>
+
+<!-- ── TOAST NOTIFICATION ───────────────────────────────────────────────── -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="niqToast" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMsg">Message here</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<footer class="text-center text-muted py-4 mt-2" style="border-top:1px solid #2a2d35; font-size:.8rem;">
+  NewsIQ — AI-powered misinformation detector &nbsp;·&nbsp; Powered by IBM watsonx.ai Granite
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
